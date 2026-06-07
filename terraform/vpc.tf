@@ -1,0 +1,121 @@
+resource "aws_vpc" "main" {
+  cidr_block           = var.vpc_cidr
+  enable_dns_hostnames = true    # EKS requires DNS hostnames to be enabled for the VPC
+  enable_dns_support   = true    #EKS also requires DNS support to be enabled
+
+  tags = {
+    Name = "${var.project_name}-vpc"
+    #these tags are required for AWS Load Balancer Controller to identify which subnets belong to the EKS cluster
+    "kubernetes.io/cluster/${var.eks_cluster_name}" = "shared"  # This tag is used by AWS Load Balancer Controller to identify which subnets belong to the EKS cluster. The value "shared" indicates that the subnets can be used by multiple clusters, but in this case, we only have one cluster.
+  }
+}
+   # 2 public subnets for Load Balancers and NAT Gateways
+resource "aws_subnet" "public" {
+  count             = length(var.public_subnet_cidrs)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.public_subnet_cidrs[count.index]
+  availability_zone = var.availability_zones[count.index]
+
+  # Public subnets need to auto-assign public IPs for Load Balancers and NAT Gateways
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "${var.project_name}-public-subnet-${count.index + 1}"
+    #required for AWS Load Balancer Controller to identify which subnets can be used for internet-facing Load Balancers
+    "kubernetes.io/role/elb"                                      = "1"
+    "kubernetes.io/cluster/${var.eks_cluster_name}"               = "shared"
+  }
+}
+
+# 2 private subnets for EKS Worker Nodes
+resource "aws_subnet" "private" {
+  count             = length(var.private_subnet_cidrs)
+  vpc_id            = aws_vpc.main.id
+  cidr_block        = var.private_subnet_cidrs[count.index]
+  availability_zone = var.availability_zones[count.index]
+
+  map_public_ip_on_launch = false
+
+  tags = {
+    Name = "${var.project_name}-private-subnet-${count.index + 1}"
+    #required for AWS Load Balancer Controller to identify which subnets can be used for internal Load Balancers
+    "kubernetes.io/role/internal-elb"                             = "1"
+    "kubernetes.io/cluster/${var.eks_cluster_name}"               = "shared"
+  }
+}
+
+# allow instances in private subnets to access the internet via NAT Gateway
+resource "aws_internet_gateway" "main" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "${var.project_name}-igw"
+  }
+}
+
+# ── 5. Elastic IPs for NAT Gateways & must be created before the NAT Gateways to get their allocation IDs
+resource "aws_eip" "nat" {
+  count  = length(var.public_subnet_cidrs)
+  domain = "vpc"
+
+  depends_on = [aws_internet_gateway.main]
+
+  tags = {
+    Name = "${var.project_name}-nat-eip-${count.index + 1}"
+  }
+}
+# ── 6. NAT Gateways in each public subnet
+resource "aws_nat_gateway" "main" {
+  count         = length(var.public_subnet_cidrs)
+  allocation_id = aws_eip.nat[count.index].id
+  subnet_id     = aws_subnet.public[count.index].id
+
+  depends_on = [aws_internet_gateway.main]
+
+  tags = {
+    Name = "${var.project_name}-nat-gw-${count.index + 1}"
+  }
+}
+
+# ── 7. Route Table for Public Subnets (with default route to Internet Gateway)
+resource "aws_route_table" "public" {
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block = "0.0.0.0/0"
+    gateway_id = aws_internet_gateway.main.id
+  }
+
+  tags = {
+    Name = "${var.project_name}-public-rt"
+  }
+}
+
+#connect public subnets to the public route table
+resource "aws_route_table_association" "public" {
+  count          = length(aws_subnet.public)
+  subnet_id      = aws_subnet.public[count.index].id
+  route_table_id = aws_route_table.public.id
+}
+
+#route tables for private subnets (with default route to NAT Gateway)
+resource "aws_route_table" "private" {
+  count  = length(var.private_subnet_cidrs)
+  vpc_id = aws_vpc.main.id
+
+  route {
+    cidr_block     = "0.0.0.0/0"
+    nat_gateway_id = aws_nat_gateway.main[count.index].id
+  }
+
+  tags = {
+    Name = "${var.project_name}-private-rt-${count.index + 1}"
+  }
+}
+
+# connect private subnets to their respective route tables
+resource "aws_route_table_association" "private" {
+  count          = length(aws_subnet.private)
+  subnet_id      = aws_subnet.private[count.index].id
+  route_table_id = aws_route_table.private[count.index].id
+}
