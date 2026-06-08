@@ -1,0 +1,23 @@
+#one file to rule them all, this is a common pattern in Argo CD to manage multiple applications under a single parent application, it allows for better organization and easier management of related applications.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-of-apps
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: graduation-project
+  source:
+    repoURL:        https://github.com/MohamedElsayad/devops-graduation-project
+    targetRevision: main
+    path:           argocd/apps
+  destination:
+    server:    https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune:    true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

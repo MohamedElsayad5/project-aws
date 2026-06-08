@@ -1,0 +1,20 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: app-tier
+  namespace: argocd
+spec:
+  project: graduation-project
+  source:
+    repoURL:        https://github.com/MohamedElsayad/devops-graduation-project
+    targetRevision: main
+    path:           k8s/app
+  destination:
+    server:    https://kubernetes.default.svc
+    namespace: graduation-app
+  syncPolicy:
+    automated:
+      prune:    true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

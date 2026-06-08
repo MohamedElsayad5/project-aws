@@ -1,0 +1,56 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: db-tier
+  namespace: argocd
+spec:
+  project: graduation-project
+  source:
+    repoURL:        https://github.com/MohamedElsayad/devops-graduation-project
+    targetRevision: main
+    path:           k8s/db
+  destination:
+    server:    https://kubernetes.default.svc
+    namespace: graduation-app
+  syncPolicy:
+    automated:
+      prune:    true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: memcached
+  namespace: argocd
+spec:
+  project: graduation-project
+  source:
+    repoURL:        https://github.com/MohamedElsayad/devops-graduation-project
+    targetRevision: main
+    path:           k8s/memcached
+  destination:
+    server:    https://kubernetes.default.svc
+    namespace: graduation-app
+  syncPolicy:
+    automated:
+      prune:    true
+      selfHeal: true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: rabbitmq
+  namespace: argocd
+spec:
+  project: graduation-project
+  source:
+    repoURL:        https://github.com/MohamedElsayad/devops-graduation-project
+    targetRevision: main
+    path:           k8s/rabbitmq
+  destination:
+    server:    https://kubernetes.default.svc
+    namespace: graduation-app
+  syncPolicy:
+    automated:
+      prune:    true
+      selfHeal: true

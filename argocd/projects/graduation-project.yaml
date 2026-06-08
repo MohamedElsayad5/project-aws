@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: graduation-project
+  namespace: argocd
+spec:
+  description: "Graduation Project — Multi-tier App"
+  sourceRepos:
+    - 'https://github.com/YOUR_USERNAME/devops-graduation-project'
+  destinations:
+    - namespace: graduation-app
+      server:    https://kubernetes.default.svc
+    - namespace: monitoring
+      server:    https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind:  Namespace
+    - group: 'storage.k8s.io'
+      kind:  StorageClass

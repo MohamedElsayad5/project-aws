@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: prometheus
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.48.0
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus"
+            - "--storage.tsdb.retention.time=7d"
+          ports:
+            - containerPort: 9090
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu:    "100m"
+            limits:
+              memory: "512Mi"
+              cpu:    "500m"
+          volumeMounts:
+            - name:      config
+              mountPath: /etc/prometheus
+            - name:      storage
+              mountPath: /prometheus
+
+      volumes:
+        - name: config
+          configMap:
+            name: prometheus-config
+        - name: storage
+          emptyDir: {}
+---
+# RBAC for Prometheus to access Kubernetes API and scrape metrics from nodes, pods, services, and endpoints. This is essential for Prometheus to collect the necessary data for monitoring the cluster and applications.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus
+rules:
+  - apiGroups: [""]
+    resources: ["nodes", "pods", "services", "endpoints"]
+    verbs:     ["get", "list", "watch"]
+  - apiGroups: ["extensions", "apps"]
+    resources: ["deployments"]
+    verbs:     ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind:     ClusterRole
+  name:     prometheus
+subjects:
+  - kind:      ServiceAccount
+    name:      prometheus
+    namespace: monitoring
