@@ -1,0 +1,21 @@
+# WEB Service — LoadBalancer (Web-CLB)
+apiVersion: v1
+kind: Service
+metadata:
+  name: web-service
+  namespace: graduation-app
+  labels:
+    app: web
+  annotations:
+    # Classic Load Balancer
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: http
+spec:
+  type: LoadBalancer
+  selector:
+    app: web
+  ports:
+    - name:       http
+      protocol:   TCP
+      port:       80
+      targetPort: 80
+      nodePort:   32080
