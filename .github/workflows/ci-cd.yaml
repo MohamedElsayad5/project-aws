@@ -40,7 +40,8 @@ jobs:
       - name: Build APP Image
         uses: docker/build-push-action@v5
         with:
-          context: ./k8s/app # تم تعديل الـ context للمتاح عندك
+          context: ./docker/app
+          file: ./docker/app/Dockerfile
           push: false
           tags: ${{ env.APP_IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
           cache-from: type=gha
@@ -50,7 +51,8 @@ jobs:
       - name: Build WEB Image
         uses: docker/build-push-action@v5
         with:
-          context: ./k8s/web
+          context: ./docker/web
+          file: ./docker/web/Dockerfile
           push: false
           tags: ${{ env.WEB_IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
           cache-from: type=gha
