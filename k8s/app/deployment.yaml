@@ -37,7 +37,7 @@ spec:
 
       containers:
         - name: app
-          image: public.ecr.aws/x0m5t6i2/graduation-app
+          image: node:current-alpine
           ports:
             - containerPort: 8080
           env:
