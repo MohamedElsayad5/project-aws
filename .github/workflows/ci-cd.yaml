@@ -1,5 +1,5 @@
 # GitHub Actions — CI/CD Pipeline
-# Pull Public Images → Push ECR → Update Manifests → ArgoCD Sync
+# Login & Pull Public Images → Push ECR → Update Manifests → ArgoCD Sync
 name: CI/CD Pipeline
 
 on:
@@ -13,12 +13,11 @@ env:
   ECR_REGISTRY:     public.ecr.aws          # Public ECR
   APP_IMAGE_NAME:   graduation-app
   WEB_IMAGE_NAME:   graduation-web
-  # الـ Public Images الأصلية والشغالة للمشروع
   PUBLIC_APP_IMAGE: public.ecr.aws/x0m5t6i2/graduation-app:latest
   PUBLIC_WEB_IMAGE: public.ecr.aws/x0m5t6i2/graduation-web:latest
 
 jobs:
-# Job 1: Pull and Prepare Images
+# Job 1: Login, Pull and Prepare Images
   prepare-images:
     name: 🔄 Pull & Tag Public Images
     runs-on: ubuntu-latest
@@ -36,6 +35,19 @@ jobs:
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
           echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "Image Tag: ${SHORT_SHA}"
+
+      # نقلنا خطوة الـ AWS هنا عشان الـ Pull ينجح
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR Public
+        run: |
+          aws ecr-public get-login-password --region us-east-1 | \
+          docker login --username AWS --password-stdin public.ecr.aws
 
       - name: Pull Public Images
         run: |
