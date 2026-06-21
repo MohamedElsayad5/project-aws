@@ -6,7 +6,7 @@ metadata:
 spec:
   description: "Graduation Project — Multi-tier App"
   sourceRepos:
-    - 'https://github.com/MohamedElsayad5/devops-graduation-project'
+    - 'https://github.com/MohamedElsayad5/project-aws.git'
   destinations:
     - namespace: graduation-app
       server:    https://kubernetes.default.svc
