@@ -37,7 +37,11 @@ spec:
 
       containers:
         - name: app
+<<<<<<< HEAD
           image: public.ecr.aws/x0m5t6i2/graduation-app:e3a99fb
+=======
+          image: public.ecr.aws/x0m5t6i2/graduation-app:0fe7d9f
+>>>>>>> 3d61d83 (ci: update image tag to 0fe7d9f [skip ci])
           ports:
             - containerPort: 8080
           env:
