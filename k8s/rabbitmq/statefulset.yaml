@@ -41,21 +41,23 @@ spec:
               memory: "256Mi"
               cpu:    "200m"
           livenessProbe:
-            tcpSocket:
-              port: 5672
-            initialDelaySeconds: 60
-            periodSeconds:       30
-            failureThreshold:    5
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - ping
+          initialDelaySeconds: 60   
+          periodSeconds: 15
+          timeoutSeconds: 5        
+          failureThreshold: 3
           readinessProbe:
-            tcpSocket:
-              port: 5672
-            initialDelaySeconds: 30
-            periodSeconds:       15
-            failureThreshold:    3
-          volumeMounts:
-            - name:      rabbitmq-storage
-              mountPath: /var/lib/rabbitmq
-
+          exec:
+            command:
+            - rabbitmq-diagnostics
+            - ping
+          initialDelaySeconds: 20
+          periodSeconds: 15
+          timeoutSeconds: 5         #
+          failureThreshold: 3
   volumeClaimTemplates:
     - metadata:
         name: rabbitmq-storage
