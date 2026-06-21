@@ -37,7 +37,7 @@ spec:
 
       containers:
         - name: app
-          image: public.ecr.aws/ALIAS/graduation-app:latest
+          image: mohamedelsayad5/graduation-app:latest
           ports:
             - containerPort: 8080
           env:
