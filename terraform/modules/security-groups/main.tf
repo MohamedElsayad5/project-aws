@@ -1,7 +1,7 @@
 # modules/security-groups/main.tf
 resource "aws_security_group" "eks_cluster" {
   name        = "${var.project_name}-eks-cluster-sg"
-  description = "Security Group للـ EKS Control Plane"
+  description = "Security Group for EKS Control Plane"
   vpc_id      = var.vpc_id
 
   ingress {

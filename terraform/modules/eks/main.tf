@@ -131,31 +131,78 @@ resource "aws_eks_node_group" "this" {
   }
 }
 
-# ── EKS Add-ons ───────────────────────────────────────────
-resource "aws_eks_addon" "ebs_csi" {
-  cluster_name             = aws_eks_cluster.this.name
-  addon_name               = "aws-ebs-csi-driver"
-  resolve_conflicts_on_update = "OVERWRITE"
-  depends_on               = [aws_eks_node_group.this]
+# ── IAM Role for EBS CSI Driver (IRSA) ────────────────────
+data "aws_iam_policy_document" "ebs_csi_assume_role" {
+  statement {
+    effect = "Allow"
+
+    principals {
+      type        = "Federated"
+      identifiers = [aws_iam_openid_connect_provider.this.arn]
+    }
+
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.this.url, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(aws_iam_openid_connect_provider.this.url, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:ebs-csi-controller-sa"]
+    }
+  }
 }
 
-resource "aws_eks_addon" "coredns" {
-  cluster_name             = aws_eks_cluster.this.name
-  addon_name               = "coredns"
+resource "aws_iam_role" "ebs_csi_driver" {
+  name               = "${var.project_name}-ebs-csi-role"
+  assume_role_policy = data.aws_iam_policy_document.ebs_csi_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "ebs_csi_driver_policy" {
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy"
+  role       = aws_iam_role.ebs_csi_driver.name
+}
+
+# ── EKS Add-ons ───────────────────────────────────────────
+resource "aws_eks_addon" "vpc_cni" {
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "vpc-cni"
   resolve_conflicts_on_update = "OVERWRITE"
-  depends_on               = [aws_eks_node_group.this]
+  depends_on                  = [aws_eks_node_group.this]
 }
 
 resource "aws_eks_addon" "kube_proxy" {
-  cluster_name             = aws_eks_cluster.this.name
-  addon_name               = "kube-proxy"
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "kube-proxy"
   resolve_conflicts_on_update = "OVERWRITE"
-  depends_on               = [aws_eks_node_group.this]
+  depends_on                  = [aws_eks_node_group.this]
 }
 
-resource "aws_eks_addon" "vpc_cni" {
-  cluster_name             = aws_eks_cluster.this.name
-  addon_name               = "vpc-cni"
+resource "aws_eks_addon" "coredns" {
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "coredns"
   resolve_conflicts_on_update = "OVERWRITE"
-  depends_on               = [aws_eks_node_group.this]
+  depends_on                  = [aws_eks_node_group.this]
+}
+
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name                = aws_eks_cluster.this.name
+  addon_name                  = "aws-ebs-csi-driver"
+  resolve_conflicts_on_update = "OVERWRITE"
+  service_account_role_arn    = aws_iam_role.ebs_csi_driver.arn
+
+  depends_on = [
+    aws_eks_node_group.this,
+    aws_iam_role_policy_attachment.ebs_csi_driver_policy,
+  ]
+
+  timeouts {
+    create = "30m"
+    update = "20m"
+    delete = "20m"
+  }
 }

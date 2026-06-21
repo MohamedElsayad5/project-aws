@@ -9,7 +9,7 @@ public_subnet_cidrs  = ["10.0.1.0/24", "10.0.2.0/24"]
 private_subnet_cidrs = ["10.0.10.0/24", "10.0.20.0/24"]
 
 eks_cluster_name         = "elsayad-eks-cluster"
-eks_cluster_version      = "1.29"
+eks_cluster_version      = "1.31"
 eks_node_instance_types  = ["t3.small"]
 eks_node_desired_size    = 2
 eks_node_min_size        = 1
