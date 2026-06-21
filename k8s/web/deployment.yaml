@@ -39,7 +39,7 @@ spec:
       containers:
         - name: web
           #update the image tag to use the one from ECR after pushing the image in the pipeline automatically
-          image: dockersamples/static-site:latest
+          image: public.ecr.aws/x0m5t6i2/graduation-web:latest
           ports:
             - containerPort: 80
           resources:
