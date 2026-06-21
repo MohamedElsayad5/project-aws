@@ -39,7 +39,7 @@ spec:
       containers:
         - name: web
           #update the image tag to use the one from ECR after pushing the image in the pipeline automatically
-          image: public.ecr.aws/x0m5t6i2/graduation-web:61b2ae0
+          image: public.ecr.aws/x0m5t6i2/graduation-web:8b8e1db
           ports:
             - containerPort: 80
           resources:
