@@ -1,5 +1,5 @@
 # GitHub Actions — CI/CD Pipeline
-# Build Docker Images → Push ECR → Update Manifests → ArgoCD Sync
+# Pull Public Images → Push ECR → Update Manifests → ArgoCD Sync
 name: CI/CD Pipeline
 
 on:
@@ -13,11 +13,14 @@ env:
   ECR_REGISTRY:     public.ecr.aws          # Public ECR
   APP_IMAGE_NAME:   graduation-app
   WEB_IMAGE_NAME:   graduation-web
+  # الـ Public Images الأصلية والشغالة للمشروع
+  PUBLIC_APP_IMAGE: public.ecr.aws/x0m5t6i2/graduation-app:latest
+  PUBLIC_WEB_IMAGE: public.ecr.aws/x0m5t6i2/graduation-web:latest
 
 jobs:
-# Job 1: Build Docker Images Directly
-  docker-build:
-    name: 🐳 Build Docker Images
+# Job 1: Pull and Prepare Images
+  prepare-images:
+    name: 🔄 Pull & Tag Public Images
     runs-on: ubuntu-latest
 
     outputs:
@@ -34,32 +37,17 @@ jobs:
           echo "tag=${SHORT_SHA}" >> $GITHUB_OUTPUT
           echo "Image Tag: ${SHORT_SHA}"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build APP Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./docker/app
-          file: ./docker/app/Dockerfile
-          push: false
-          tags: ${{ env.APP_IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/app-image.tar
-
-      - name: Build WEB Image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./docker/web
-          file: ./docker/web/Dockerfile
-          push: false
-          tags: ${{ env.WEB_IMAGE_NAME }}:${{ steps.meta.outputs.tag }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-          outputs: type=docker,dest=/tmp/web-image.tar
+      - name: Pull Public Images
+        run: |
+          docker pull ${{ env.PUBLIC_APP_IMAGE }}
+          docker pull ${{ env.PUBLIC_WEB_IMAGE }}
 
       - name: Save Images as Artifacts
+        run: |
+          docker save ${{ env.PUBLIC_APP_IMAGE }} -o /tmp/app-image.tar
+          docker save ${{ env.PUBLIC_WEB_IMAGE }} -o /tmp/web-image.tar
+
+      - name: Upload Images
         uses: actions/upload-artifact@v4
         with:
           name: docker-images
@@ -70,7 +58,7 @@ jobs:
   push-to-ecr:
     name: 📦 Push to AWS ECR
     runs-on: ubuntu-latest
-    needs: docker-build
+    needs: prepare-images
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
@@ -99,22 +87,22 @@ jobs:
 
       - name: Tag & Push APP Image
         run: |
-          IMAGE_TAG=${{ needs.docker-build.outputs.image-tag }}
+          IMAGE_TAG=${{ needs.prepare-images.outputs.image-tag }}
           ECR_REPO="${{ env.ECR_REGISTRY }}/${{ secrets.ECR_ALIAS }}/${{ env.APP_IMAGE_NAME }}"
 
-          docker tag ${{ env.APP_IMAGE_NAME }}:${IMAGE_TAG} ${ECR_REPO}:${IMAGE_TAG}
-          docker tag ${{ env.APP_IMAGE_NAME }}:${IMAGE_TAG} ${ECR_REPO}:latest
+          docker tag ${{ env.PUBLIC_APP_IMAGE }} ${ECR_REPO}:${IMAGE_TAG}
+          docker tag ${{ env.PUBLIC_APP_IMAGE }} ${ECR_REPO}:latest
 
           docker push ${ECR_REPO}:${IMAGE_TAG}
           docker push ${ECR_REPO}:latest
 
       - name: Tag & Push WEB Image
         run: |
-          IMAGE_TAG=${{ needs.docker-build.outputs.image-tag }}
+          IMAGE_TAG=${{ needs.prepare-images.outputs.image-tag }}
           ECR_REPO="${{ env.ECR_REGISTRY }}/${{ secrets.ECR_ALIAS }}/${{ env.WEB_IMAGE_NAME }}"
 
-          docker tag ${{ env.WEB_IMAGE_NAME }}:${IMAGE_TAG} ${ECR_REPO}:${IMAGE_TAG}
-          docker tag ${{ env.WEB_IMAGE_NAME }}:${IMAGE_TAG} ${ECR_REPO}:latest
+          docker tag ${{ env.PUBLIC_WEB_IMAGE }} ${ECR_REPO}:${IMAGE_TAG}
+          docker tag ${{ env.PUBLIC_WEB_IMAGE }} ${ECR_REPO}:latest
 
           docker push ${ECR_REPO}:${IMAGE_TAG}
           docker push ${ECR_REPO}:latest
@@ -123,7 +111,7 @@ jobs:
   update-manifests:
     name: 📝 Update K8s Manifests
     runs-on: ubuntu-latest
-    needs: [docker-build, push-to-ecr]
+    needs: [prepare-images, push-to-ecr]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
@@ -134,7 +122,7 @@ jobs:
 
       - name: Update APP & WEB Image Tag in Manifest
         run: |
-          IMAGE_TAG=${{ needs.docker-build.outputs.image-tag }}
+          IMAGE_TAG=${{ needs.prepare-images.outputs.image-tag }}
           ECR_ALIAS=${{ secrets.ECR_ALIAS }}
 
           sed -i "s|image: public.ecr.aws/${ECR_ALIAS}/graduation-app:.*|image: public.ecr.aws/${ECR_ALIAS}/graduation-app:${IMAGE_TAG}|g" k8s/app/deployment.yaml
@@ -145,5 +133,5 @@ jobs:
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add k8s/app/deployment.yaml k8s/web/deployment.yaml
-          git commit -m "ci: update image tag to ${{ needs.docker-build.outputs.image-tag }} [skip ci]"
+          git commit -m "ci: update image tag to ${{ needs.prepare-images.outputs.image-tag }} [skip ci]"
           git push
