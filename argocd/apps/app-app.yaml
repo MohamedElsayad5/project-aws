@@ -6,7 +6,7 @@ metadata:
 spec:
   project: graduation-project
   source:
-    repoURL:        https://github.com/MohamedElsayad/devops-graduation-project
+    repoURL:        https://github.com/MohamedElsayad5/project-aws.git
     targetRevision: main
     path:           k8s/app
   destination:
