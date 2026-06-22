@@ -37,7 +37,7 @@ spec:
 
       containers:
         - name: app
-          image: public.ecr.aws/x0m5t6i2/graduation-app:0fe7d9f
+          image: public.ecr.aws/x0m5t6i2/graduation-app:f99ece2
           ports:
             - containerPort: 8080
           env:
