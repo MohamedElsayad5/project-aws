@@ -1,12 +1,9 @@
-FROM tomcat:10-alpine
+FROM eclipse-temurin:21-jdk-alpine
 
-RUN rm -rf /usr/local/tomcat/webapps/ROOT && \
-    mkdir -p /usr/local/tomcat/webapps/ROOT && \
-    echo '{"status":"UP"}' > \
-    /usr/local/tomcat/webapps/ROOT/actuator/health/liveness/index.html && \
-    echo '{"status":"UP"}' > \
-    /usr/local/tomcat/webapps/ROOT/actuator/health/readiness/index.html
+WORKDIR /app
+
+COPY target/*.jar app.jar
 
 EXPOSE 8080
 
-CMD ["catalina.sh", "run"]
+ENTRYPOINT ["java","-jar","app.jar"]
